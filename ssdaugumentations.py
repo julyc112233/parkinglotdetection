@@ -7,6 +7,8 @@ from numpy import random
 
 
 def intersect(box_a, box_b):
+    if box_a is None or box_b is None:
+        return 0
     max_xy = np.minimum(box_a[:, 2:], box_b[2:])
     min_xy = np.maximum(box_a[:, :2], box_b[:2])
     inter = np.clip((max_xy - min_xy), a_min=0, a_max=np.inf)
@@ -24,6 +26,8 @@ def jaccard_numpy(box_a, box_b):
     Return:
         jaccard overlap: Shape: [box_a.shape[0], box_a.shape[1]]
     """
+    if box_a is None or box_b is None:
+        return 0
     inter = intersect(box_a, box_b)
     area_a = ((box_a[:, 2]-box_a[:, 0]) *
               (box_a[:, 3]-box_a[:, 1]))  # [A,B]
@@ -81,23 +85,24 @@ class SubtractMeans(object):
 
 class ToAbsoluteCoords(object):
     def __call__(self, image, boxes=None, labels=None):
-        height, width, channels = image.shape
-        boxes[:, 0] *= width
-        boxes[:, 2] *= width
-        boxes[:, 1] *= height
-        boxes[:, 3] *= height
+        if not boxes is None:
+            height, width, channels = image.shape
+            boxes[:, 0] *= width
+            boxes[:, 2] *= width
+            boxes[:, 1] *= height
+            boxes[:, 3] *= height
 
         return image, boxes, labels
 
 
 class ToPercentCoords(object):
     def __call__(self, image, boxes=None, labels=None):
-        height, width, channels = image.shape
-        boxes[:, 0] /= width
-        boxes[:, 2] /= width
-        boxes[:, 1] /= height
-        boxes[:, 3] /= height
-
+        if not boxes is None:
+            height, width, channels = image.shape
+            boxes[:, 0] /= width
+            boxes[:, 2] /= width
+            boxes[:, 1] /= height
+            boxes[:, 3] /= height
         return image, boxes, labels
 
 
@@ -262,49 +267,53 @@ class RandomSampleCrop(object):
                 # convert to integer rect x1,y1,x2,y2
                 rect = np.array([int(left), int(top), int(left+w), int(top+h)])
 
-                # calculate IoU (jaccard overlap) b/t the cropped and gt boxes
-                overlap = jaccard_numpy(boxes, rect)
 
-                # is min and max overlap constraint satisfied? if not try again
-                if overlap.min() < min_iou and max_iou < overlap.max():
-                    continue
 
                 # cut the crop from the image
                 current_image = current_image[rect[1]:rect[3], rect[0]:rect[2],
                                               :]
+                current_labels=labels
+                current_boxes=boxes
 
-                # keep overlap with gt box IF center in sampled patch
-                centers = (boxes[:, :2] + boxes[:, 2:]) / 2.0
+                if not boxes is None:
+                    # calculate IoU (jaccard overlap) b/t the cropped and gt boxes
+                    overlap = jaccard_numpy(boxes, rect)
 
-                # mask in all gt boxes that above and to the left of centers
-                m1 = (rect[0] < centers[:, 0]) * (rect[1] < centers[:, 1])
+                    # is min and max overlap constraint satisfied? if not try again
+                    if overlap.min() < min_iou and max_iou < overlap.max():
+                        continue
+                    # keep overlap with gt box IF center in sampled patch
+                    centers = (boxes[:, :2] + boxes[:, 2:]) / 2.0
 
-                # mask in all gt boxes that under and to the right of centers
-                m2 = (rect[2] > centers[:, 0]) * (rect[3] > centers[:, 1])
+                    # mask in all gt boxes that above and to the left of centers
+                    m1 = (rect[0] < centers[:, 0]) * (rect[1] < centers[:, 1])
 
-                # mask in that both m1 and m2 are true
-                mask = m1 * m2
+                    # mask in all gt boxes that under and to the right of centers
+                    m2 = (rect[2] > centers[:, 0]) * (rect[3] > centers[:, 1])
 
-                # have any valid boxes? try again if not
-                if not mask.any():
-                    continue
+                    # mask in that both m1 and m2 are true
+                    mask = m1 * m2
 
-                # take only matching gt boxes
-                current_boxes = boxes[mask, :].copy()
+                    # have any valid boxes? try again if not
+                    if not mask.any():
+                        continue
 
-                # take only matching gt labels
-                current_labels = labels[mask]
+                    # take only matching gt boxes
+                    current_boxes = boxes[mask, :].copy()
 
-                # should we use the box left and top corner or the crop's
-                current_boxes[:, :2] = np.maximum(current_boxes[:, :2],
-                                                  rect[:2])
-                # adjust to crop (by substracting crop's left,top)
-                current_boxes[:, :2] -= rect[:2]
+                    # take only matching gt labels
+                    current_labels = labels[mask]
 
-                current_boxes[:, 2:] = np.minimum(current_boxes[:, 2:],
-                                                  rect[2:])
-                # adjust to crop (by substracting crop's left,top)
-                current_boxes[:, 2:] -= rect[:2]
+                    # should we use the box left and top corner or the crop's
+                    current_boxes[:, :2] = np.maximum(current_boxes[:, :2],
+                                                      rect[:2])
+                    # adjust to crop (by substracting crop's left,top)
+                    current_boxes[:, :2] -= rect[:2]
+
+                    current_boxes[:, 2:] = np.minimum(current_boxes[:, 2:],
+                                                      rect[2:])
+                    # adjust to crop (by substracting crop's left,top)
+                    current_boxes[:, 2:] -= rect[:2]
 
                 return current_image, current_boxes, current_labels
 
@@ -329,10 +338,10 @@ class Expand(object):
         expand_image[int(top):int(top + height),
                      int(left):int(left + width)] = image
         image = expand_image
-
-        boxes = boxes.copy()
-        boxes[:, :2] += (int(left), int(top))
-        boxes[:, 2:] += (int(left), int(top))
+        if not boxes is None:
+            boxes = boxes.copy()
+            boxes[:, :2] += (int(left), int(top))
+            boxes[:, 2:] += (int(left), int(top))
 
         return image, boxes, labels
 
@@ -342,8 +351,9 @@ class RandomMirror(object):
         _, width, _ = image.shape
         if random.randint(2):
             image = image[:, ::-1]
-            boxes = boxes.copy()
-            boxes[:, 0::2] = width - boxes[:, 2::-2]
+            if not boxes is None:
+                boxes = boxes.copy()
+                boxes[:, 0::2] = width - boxes[:, 2::-2]
         return image, boxes, classes
 
 
@@ -402,6 +412,7 @@ class SSDAugmentation(object):
         self.mean = mean
         self.size = size
         self.augment = Compose([
+            # transforms.ToTensor(),
             ConvertFromInts(),
             ToAbsoluteCoords(),
             PhotometricDistort(),
@@ -414,4 +425,5 @@ class SSDAugmentation(object):
         ])
 
     def __call__(self, img, boxes, labels):
+        img,boxes,labels=self.augment(img, boxes, labels)
         return self.augment(img, boxes, labels)

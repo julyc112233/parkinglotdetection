@@ -104,21 +104,13 @@ class cnrpark_small(data.Dataset):
         # print("test:",im.shape)
         # im=transforms.RandomCrop(224, pad_if_needed=True, fill=0, padding_mode='constant')(im)
         gt=self.label[index]
-        # print(im.shape)
         if self.transform is not None:
-            # print(type(im))
-            im=self.transform(im)
-            # b, g, r = cv2.split(im)
-            # print(im.shape)#[3, 224, 224]
-            # im = im[:, :, :]
-            # im=cv2.merge([r,g,b])
-            # print(im.shape)#[224, 3, 224]
-            # print(im.shape)
-        # im=im.permute(2,0,1)
-        # print(im.shape)
-        # print(im.shape)
-        # exit()
-        return im,gt
+
+            boxes=None
+            im,boxes,gt=self.transform(im,boxes,gt)
+            im=im[:,:,(2,1,0)]
+
+        return torch.from_numpy(im).permute(2, 0, 1),gt
 
     def __len__(self):
         return self.len

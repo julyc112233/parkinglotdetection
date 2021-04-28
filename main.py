@@ -5,6 +5,7 @@
 import sys
 import time
 
+from ssdaugumentations import SSDAugmentation
 from data import *
 import torchvision
 import torch
@@ -20,17 +21,20 @@ from net import *
 from torch.autograd import Variable
 
 # 数据分割只跑一次，分割完记得改成False
-need_split_data=True
+need_split_data=False
 
 
 HOME = os.path.expanduser("~")
 data_root=osp.join(HOME,"downloads/CNRPark-Patches-150x150")
 batch_size=32
-num_work=12
+num_work=1
 epoch_num=50
 lr=0.0001
 momentum=0.9
 weight_decay=5e-4
+
+
+MEANS = (104, 117, 123)
 
 targ_root="/Users/julyc/PycharmProjects/vgg16/data/cnr_park_small/train/"
 
@@ -44,15 +48,15 @@ def net_train():
     print("change to train mode ...")
     net.train()
 
-    transform = transforms.Compose([
-                                    transforms.ToTensor(),  # 转化成张量数据结构
-                                    # transforms.Resize((224,224)),  # 对原始图片进行裁剪
-                                    # transforms.Pad(224,fill=0,padding_mode='constant'),
-                                    transforms.Normalize([0.5, 0.5, 0.5],
-                                                         [0.5, 0.5, 0.5])])  # 用均值和标准差对张量图像进行归一化
+    # transform = transforms.Compose([
+    #                                 transforms.ToTensor(),  # 转化成张量数据结构
+    #                                 # transforms.Resize((224,224)),  # 对原始图片进行裁剪
+    #                                 # transforms.Pad(224,fill=0,padding_mode='constant'),
+    #                                 transforms.Normalize([0.5, 0.5, 0.5],
+    #                                                      [0.5, 0.5, 0.5])])  # 用均值和标准差对张量图像进行归一化
     train_loss=0
     print("process_data...")
-    dataset=cnrpark_small(targ_root,transform=transform)
+    dataset=cnrpark_small(targ_root,transform=SSDAugmentation(224,MEANS))
     epoch_size = len(dataset) // batch_size
     data_loader=torch.utils.data.DataLoader(dataset,batch_size,num_workers=num_work,shuffle=True,pin_memory=True)
     optimizer = optim.SGD(net.parameters(), lr=lr, momentum=momentum,
