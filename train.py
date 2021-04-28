@@ -87,10 +87,10 @@ if torch.cuda.is_available():
 else:
     torch.set_default_tensor_type('torch.FloatTensor')
 
+if args.visdom:
+    import visdom
+    viz = visdom.Visdom()
 def net_train():
-    if args.visdom:
-        import visdom
-        viz = visdom.Visdom()
     print("loading net...")
 
     net = vgg16(pretrain=True)
@@ -131,6 +131,13 @@ def net_train():
     print("process_data...")
     dataset=cnrpark_small(targ_root,transform=SSDAugmentation(224,MEANS))
     epoch_size = len(dataset) // batch_size
+
+    if args.visdom:
+        vis_title = 'loss'
+        vis_legend = ['Total Loss']
+        iter_plot = create_vis_plot('Iteration', 'Loss', vis_title, vis_legend)
+        epoch_plot = create_vis_plot('Epoch', 'Loss', vis_title, vis_legend)
+
     data_loader=torch.utils.data.DataLoader(dataset,batch_size,num_workers=num_work,shuffle=True,pin_memory=True)
     optimizer = optim.SGD(net.parameters(), lr=lr, momentum=momentum,
                           weight_decay=weight_decay)
@@ -170,6 +177,9 @@ def net_train():
         if iteration % 10==0:
             print('timer:%.4f sec.'%(t1-t0))
             print('iter'+repr(iteration)+'||loss:%.4f||'%(loss.item()),end=' ')
+        if args.visdom:
+            update_vis_plot(iteration, loss.item,
+                            iter_plot, epoch_plot, 'append')
         if iteration !=0 and iteration % 5000==0:
             print('Saving state,iter:',iteration)
             torch.save(net.state_dict,'weights/vgg16_cnrpark'+repr(iteration)+'.pth')
@@ -190,7 +200,7 @@ def update_vis_plot(iteration, loc, conf, window1, window2, update_type,
                     epoch_size=1):
     viz.line(
         X=torch.ones((1, 3)).cpu() * iteration,
-        Y=torch.Tensor([loc, conf, loc + conf]).unsqueeze(0).cpu() / epoch_size,
+        Y=torch.Tensor([conf]).unsqueeze(0).cpu() / epoch_size,
         win=window1,
         update=update_type
     )
@@ -198,7 +208,7 @@ def update_vis_plot(iteration, loc, conf, window1, window2, update_type,
     if iteration == 0:
         viz.line(
             X=torch.zeros((1, 3)).cpu(),
-            Y=torch.Tensor([loc, conf, loc + conf]).unsqueeze(0).cpu(),
+            Y=torch.Tensor([conf]).unsqueeze(0).cpu(),
             win=window2,
             update=True
         )
