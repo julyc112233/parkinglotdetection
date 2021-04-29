@@ -1,0 +1,4 @@
+/data/*
+!/data/cnrparkSmall.py
+!/data/__init__.py
+!/data/test.py
