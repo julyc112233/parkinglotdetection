@@ -24,16 +24,15 @@ from data.cnrparkext import *
 from torch.autograd import Variable
 
 # 数据分割只跑一次，分割完记得改成False
-need_split_data=True
+need_split_data=False
 
 
 
 HOME = os.path.expanduser("~")
 # data_root=osp.join(HOME,".jupyter/cnrpark/CNRPark-Patches-150x150")
-data_root=osp.join(HOME,"downloads/CNR-EXT-Patches-150x150")
-
+data_root=osp.join(HOME,"Downloads/CNR-EXT-Patches-150x150")
 batch_size=64
-num_work=32
+num_work=0
 epoch_num=50
 lr=0.0001
 momentum=0.9
@@ -101,7 +100,6 @@ torch.set_default_tensor_type('torch.FloatTensor')
 
 # except RuntimeError:
 #     pass
-print("test")
 if args.visdom:
     import visdom
     viz = visdom.Visdom()
@@ -150,6 +148,8 @@ def net_train():
             images,targets=next(batch_iterator)
         except StopIteration:
             pass
+        # print(targets)
+        # exit()
         with torch.no_grad():
             if args.cuda:
                 images = Variable(images.cuda())
@@ -160,7 +160,6 @@ def net_train():
         t0=time.time()
         out=net(images)
         optimizer.zero_grad()
-
         loss=cost(out,targets[0])
         loss.backward()
         optimizer.step()
@@ -207,11 +206,10 @@ def update_vis_plot(iteration, loss, window1, window2, update_type,
         )
 
 if __name__ == '__main__':
-    # print("test")
     if need_split_data:
         print("split data to train ans test...")
         # im,label=getdataset(data_root)
-        print(data_root)
+        # print(data_root)
         cnrext_dataset_split(data_root,"train")
     net_train()
 

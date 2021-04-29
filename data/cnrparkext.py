@@ -20,53 +20,62 @@ for path in str[:-1]:
     tmp=osp.join(tmp,path)
 data_targ_root=osp.join(tmp,"data","cnrext")
 
-class cnrext_dataset_split(dataset_root,str="train"):
+def cnrext_dataset_split(dataset_root,str="train"):
     txt_root=osp.join(dataset_root,"LABELS/train.txt")
-    # print(txt_root)
-    # exit()
-    f=open(dataset_root,"r",encoding='utf-8')
+    f=open(txt_root,"r",encoding='utf-8')
     txt_data=[]
     label=[]
-    line=f.readline()
+    line=f.readline().strip()
     while line:
-        txt_data.append(eval(line))
-        line=f.readline()
+        txt_data.append(line.split(' '))
+        line=f.readline().strip()
     targ_root=osp.join(data_targ_root,str)
+    # print(targ_root)
+    # exit()
     for img,label in txt_data:
         targ_dir=osp.join(targ_root,img)
         tmp_dir="/"
-        for a in targ_dir.split('/')[:-1]:
-            tmp_dir=osp.join(tmp,a)
-        file_root=osp.join(dataset_root,img)
+        tmp=targ_dir.split('/')[:-1]
+        # print(tmp)
+        for a in tmp:
+            tmp_dir=osp.join(tmp_dir,a)
+        file_root=osp.join(dataset_root,"PATCHES",img)
+
         if not os.path.exists(tmp_dir):
             os.makedirs(tmp_dir)
-        im=cv2.imread(img)
+        im=cv2.imread(file_root)
         im=cv2.resize(im,(224,224),interpolation=cv2.INTER_LINEAR)
         cv2.imwrite(targ_dir,im)
 
 class cnrext(data.Dataset):
-    def __init__(self,root,transform=None):
+    def __init__(self,root,transform=None,str="train"):
         self.class_to_ind=dict(zip(classes,range(len(classes))))
         self.root=root
         self.file_root=list()
         self.transform=transform
-        f=open(root,"r",encoding='utf-8')
-        line=f.readline()
+        self.txt_root=osp.join(root,"train.txt")
+        self.label=list()
+        f=open(self.txt_root,"r",encoding='utf-8')
+        line=f.readline().strip()
         txt_data=[]
+        targ_root = osp.join(data_targ_root, str)
         while line:
-            txt_data.append(eval(line))
-            line = f.readline()
-        self.file_root=txt_data[0,:]
-        self.label=txt_data[1,:]
+            # txt_data.append(line.split(' '))
+            a,b=line.split(" ")
+            self.file_root.append(targ_root+'/'+a)
+            self.label.append([self.class_to_ind[int(b)]])
+            line = f.readline().strip()
 
         self.len=len(self.label)
 
     def __getitem__(self,index):
+
         im=cv2.imread(self.file_root[index])
         b, g, r = cv2.split(im)
         im = cv2.merge([r, g, b])
 
         gt=self.label[index]
+        # print(gt)
         if self.transform is not None:
 
             boxes=None
