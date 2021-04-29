@@ -9,7 +9,7 @@ import sys
 import torchvision.transforms as transforms
 
 from sklearn.model_selection import train_test_split
-str=sys.argv[0].split('/')
+str=os.path.abspath(sys.argv[0]).split("/")
 tmp="/"
 for path in str[:-1]:
     tmp=osp.join(tmp,path)
@@ -39,29 +39,22 @@ def getdataset(root):
 def dataset_split(dataset,labels):
     train_x,test_x,train_y,test_y=train_test_split(dataset,labels,test_size=0.3,random_state=0)
     for file_root,label in zip(train_x,train_y):
-        # print(file_root,label)
-        # exit()
+
         targ_root=osp.join(data_targ_root,"train")
         str=file_root.split('/')
         tmp_dir=osp.join(targ_root,str[-3],str[-2])
         if not os.path.exists(tmp_dir):
+
             os.makedirs(tmp_dir)
         targ_dir=osp.join(tmp_dir,str[-1])
-        # print(targ_dir)
-        # exit()
+
 
         im=cv2.imread(file_root)
-        # print(im.shape)
         im=cv2.resize(im,(224,224),interpolation=cv2.INTER_LINEAR)
-        # print(im.shape)
-        # exit()
-        # print(targ_dir)
+
         cv2.imwrite(targ_dir,im)
         im2=cv2.imread(targ_dir)
-        # print(im2.shape)
-        # exit()
 
-        # shutil.copyfile(file_root,targ_dir)
 
     for file_root,label in zip(test_x,test_y):
         targ_root=osp.join(data_targ_root,"test")
@@ -101,8 +94,7 @@ class cnrpark_small(data.Dataset):
         im=cv2.imread(self.file_root[index])
         b, g, r = cv2.split(im)
         im = cv2.merge([r, g, b])
-        # print("test:",im.shape)
-        # im=transforms.RandomCrop(224, pad_if_needed=True, fill=0, padding_mode='constant')(im)
+
         gt=self.label[index]
         if self.transform is not None:
 
@@ -129,13 +121,8 @@ def test(root):
                 if not file.lower().endswith(".jpg"):
                     continue
                 file=osp.join(dir_root,file)
-                # print(file)
+
                 im=cv2.imread(file)
                 height.append(im.shape[0])
                 weight.append(im.shape[1])
     print(np.min(height),np.min(weight))
-    # len = len(label)
-
-# dataset,label=getdataset(cnr_small_root)
-# dataset_split(dataset,label)
-# test(targ_root)
