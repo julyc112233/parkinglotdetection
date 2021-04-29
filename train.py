@@ -19,16 +19,19 @@ import torch.utils.data as data
 from data.cnrparkSmall import *
 from data import *
 from net import *
+from data.cnrparkext import *
 
 from torch.autograd import Variable
 
 # 数据分割只跑一次，分割完记得改成False
-need_split_data=False
+need_split_data=True
 
 
 
 HOME = os.path.expanduser("~")
-data_root=osp.join(HOME,".jupyter/cnrpark/CNRPark-Patches-150x150")
+# data_root=osp.join(HOME,".jupyter/cnrpark/CNRPark-Patches-150x150")
+data_root=osp.join(HOME,"downloads/CNR-EXT-Patches-150x150")
+
 batch_size=64
 num_work=32
 epoch_num=50
@@ -39,7 +42,7 @@ weight_decay=5e-4
 
 MEANS = (104, 117, 123)
 
-targ_root=osp.join(HOME,".jupyter/cnrpark/parkinglotdetection/data/cnr_park_small/train/")
+targ_root=osp.join(HOME,"PycharmProjects/vgg16/data/cnrext")
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
@@ -48,6 +51,8 @@ parser = argparse.ArgumentParser(
     description='Single Shot MultiBox Detector Training With Pytorch')
 train_set = parser.add_mutually_exclusive_group()
 parser.add_argument('--dataset_root', default=data_root,
+                    help='Dataset root directory path')
+parser.add_argument('--dataset_name', default="cnrext",
                     help='Dataset root directory path')
 parser.add_argument('--basenet', default='vgg16_reducedfc.pth',
                     help='Pretrained base model')
@@ -59,7 +64,7 @@ parser.add_argument('--start_iter', default=0, type=int,
                     help='Resume training at this iter')
 parser.add_argument('--num_workers', default=4, type=int,
                     help='Number of workers used in dataloading')
-parser.add_argument('--cuda', default=True, type=str2bool,
+parser.add_argument('--cuda', default=False, type=str2bool,
                     help='Use CUDA to train model')
 parser.add_argument('--cuda_device', default=3, type=int,
                     help='specific the cuda device')
@@ -71,7 +76,7 @@ parser.add_argument('--weight_decay', default=5e-4, type=float,
                     help='Weight decay for SGD')
 parser.add_argument('--gamma', default=0.1, type=float,
                     help='Gamma update for SGD')
-parser.add_argument('--visdom', default=True, type=str2bool,
+parser.add_argument('--visdom', default=False, type=str2bool,
                     help='Use visdom for loss visualization')
 parser.add_argument('--save_folder', default='weights/',
                     help='Directory for saving checkpoint models')
@@ -96,7 +101,7 @@ torch.set_default_tensor_type('torch.FloatTensor')
 
 # except RuntimeError:
 #     pass
-
+print("test")
 if args.visdom:
     import visdom
     viz = visdom.Visdom()
@@ -114,7 +119,11 @@ def net_train():
 
     train_loss=0
     print("process_data...")
-    dataset=cnrpark_small(targ_root,transform=SSDAugmentation(224,MEANS))
+    if args.dataset_name == "cnrext":
+        dataset=cnrext(targ_root,transform=SSDAugmentation(224,MEANS))
+    else:
+        if args.dataset_name=="cnrsmall":
+            dataset = cnrpark_small(targ_root, transform=SSDAugmentation(224, MEANS))
     epoch_size = len(dataset) // batch_size
 
     if args.visdom:
@@ -198,10 +207,11 @@ def update_vis_plot(iteration, loss, window1, window2, update_type,
         )
 
 if __name__ == '__main__':
+    # print("test")
     if need_split_data:
         print("split data to train ans test...")
-
-        im,label=getdataset(data_root)
-        dataset_split(im,label)
+        # im,label=getdataset(data_root)
+        print(data_root)
+        cnrext_dataset_split(data_root,"train")
     net_train()
 
