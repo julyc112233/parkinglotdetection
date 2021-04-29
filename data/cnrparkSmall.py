@@ -36,7 +36,7 @@ def getdataset(root):
                 label.append([class_to_ind[state]])
     return file_root,label
 
-def dataset_split(dataset,labels):
+def cnrsmall_dataset_split(dataset,labels):
     train_x,test_x,train_y,test_y=train_test_split(dataset,labels,test_size=0.3,random_state=0)
     for file_root,label in zip(train_x,train_y):
 
