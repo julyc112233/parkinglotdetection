@@ -20,7 +20,7 @@ from data.cnrparkSmall import *
 from data import *
 from net import *
 from data.cnrparkext import *
-
+from torch.utils.data.distributed import DistributedSampler
 from torch.autograd import Variable
 
 # 数据分割只跑一次，分割完记得改成False
@@ -77,7 +77,12 @@ parser.add_argument('--visdom', default=True, type=str2bool,
                     help='Use visdom for loss visualization')
 parser.add_argument('--save_folder', default='weights/',
                     help='Directory for saving checkpoint models')
+parser.add_argument('--mulgpu', default=True,
+                    help='Directory for saving checkpoint models')
 args = parser.parse_args()
+
+
+torch.distributed.init_process_group(backend="nccl")
 
 if args.dataset_name == "cnrext":
     targ_root = osp.join(HOME, ".jupyter/cnrpark/parkinglotdetection/data/cnrext")
@@ -89,7 +94,7 @@ elif args.dataset_name == "snrsmall":
 # # targ_root=osp.join(HOME,".jupyter/cnrpark/parkinglotdetection/data/cnrext")
 # targ_root=osp.join(HOME,".jupyter/cnrpark/parkinglotdetection/data/cnr_park_small/train/")
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6"
 
 # if torch.cuda.is_available():
 #     if args.cuda:
@@ -120,6 +125,7 @@ def net_train():
     net = vgg16(pretrain=True)
 
     if args.cuda:
+        net=torch.nn.DataParallel(net)
         net = net.cuda()
         cudnn.benchmark = True
 
@@ -142,7 +148,7 @@ def net_train():
         iter_plot = create_vis_plot('Iteration', 'Loss', vis_title, vis_legend)
         epoch_plot = create_vis_plot('Epoch', 'Loss', vis_title, vis_legend)
 
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=num_work, shuffle=True, pin_memory=False)
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=num_work, shuffle=True, pin_memory=False,sampler=DistributedSampler(dataset))
     optimizer = optim.SGD(net.parameters(), lr=lr, momentum=momentum,
                           weight_decay=weight_decay)
     batch_iterator = iter(data_loader)
