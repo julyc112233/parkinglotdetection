@@ -30,7 +30,7 @@ HOME = os.path.expanduser("~")
 # data_root=osp.join(HOME,".jupyter/cnrpark")
 # data_root=osp.join(HOME,".jupyter/cnrpark/CNRPark-Patches-150x150")
 # data_root=osp.join(HOME,"Downloads/CNR-EXT-Patches-150x150")
-batch_size = 32
+batch_size = 64
 num_work = 32
 epoch_num = 50
 lr = 0.0001
@@ -79,10 +79,12 @@ parser.add_argument('--save_folder', default='weights/',
                     help='Directory for saving checkpoint models')
 parser.add_argument('--mulgpu', default=True,
                     help='Directory for saving checkpoint models')
+parser.add_argument('--random_sample', action='store_true', default=True, help='whether to sample the dataset with random sampler')
+
 args = parser.parse_args()
 
 
-torch.distributed.init_process_group(backend="nccl")
+# torch.distributed.init_process_group(backend='nccl', init_method='tcp://localhost:23456', rank=0, world_size=1)
 
 if args.dataset_name == "cnrext":
     targ_root = osp.join(HOME, ".jupyter/cnrpark/parkinglotdetection/data/cnrext")
@@ -94,7 +96,7 @@ elif args.dataset_name == "snrsmall":
 # # targ_root=osp.join(HOME,".jupyter/cnrpark/parkinglotdetection/data/cnrext")
 # targ_root=osp.join(HOME,".jupyter/cnrpark/parkinglotdetection/data/cnr_park_small/train/")
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 
 # if torch.cuda.is_available():
 #     if args.cuda:
@@ -125,7 +127,7 @@ def net_train():
     net = vgg16(pretrain=True)
 
     if args.cuda:
-        net=torch.nn.DataParallel(net)
+#         net=torch.nn.DataParallel(net)
         net = net.cuda()
         cudnn.benchmark = True
 
@@ -148,7 +150,7 @@ def net_train():
         iter_plot = create_vis_plot('Iteration', 'Loss', vis_title, vis_legend)
         epoch_plot = create_vis_plot('Epoch', 'Loss', vis_title, vis_legend)
 
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=num_work, shuffle=True, pin_memory=False,sampler=DistributedSampler(dataset))
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=num_work, shuffle=True, pin_memory=False)
     optimizer = optim.SGD(net.parameters(), lr=lr, momentum=momentum,
                           weight_decay=weight_decay)
     batch_iterator = iter(data_loader)
@@ -189,7 +191,7 @@ def net_train():
         if args.visdom:
             update_vis_plot(iteration, loss.item(),
                             iter_plot, epoch_plot, 'append')
-        if iteration != 0 and iteration % 5000 == 0:
+        if iteration != 0 and iteration % 20000 == 0:
             print('Saving state,iter:', iteration)
             torch.save(net.state_dict, 'weights/vgg16_cnrparkext' + repr(iteration) + '.pth')
         # running_correct += torch.sum(out== y.data)
