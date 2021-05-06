@@ -125,7 +125,10 @@ def net_train():
     print("loading net...")
 
     net = vgg16(pretrain=True)
-
+    if args.resume:
+        print('Resuming training, loading {}...'.format(args.resume))
+        net.load_state_dict(torch.load(args.resume))
+        print('finish')
     if args.cuda:
 #         net=torch.nn.DataParallel(net)
         net = net.cuda()
@@ -193,7 +196,7 @@ def net_train():
                             iter_plot, epoch_plot, 'append')
         if iteration != 0 and iteration % 20000 == 0:
             print('Saving state,iter:', iteration)
-            torch.save(net.state_dict, 'weights/vgg16_cnrparkext' + repr(iteration) + '.pth')
+            torch.save(net.state_dict(), 'weights/vgg16_cnrparkext' + repr(iteration) + '.pth')
         # running_correct += torch.sum(out== y.data)
 
 
@@ -241,4 +244,5 @@ if __name__ == '__main__':
                 im, label = getdataset(data_root)
                 cnrsmall_dataset_split(im, label)
     net_train()
+
 
