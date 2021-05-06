@@ -5,6 +5,8 @@
 import argparse
 import sys
 import time
+import torch.nn.init as init
+
 
 from ssdaugumentations import SSDAugmentation
 from data import *
@@ -32,7 +34,7 @@ HOME = os.path.expanduser("~")
 # data_root=osp.join(HOME,"Downloads/CNR-EXT-Patches-150x150")
 batch_size = 64
 num_work = 32
-epoch_num = 50
+epoch_num = 6
 lr = 0.0001
 momentum = 0.9
 weight_decay = 5e-4
@@ -65,7 +67,7 @@ parser.add_argument('--cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
 parser.add_argument('--cuda_device', default=3, type=int,
                     help='specific the cuda device')
-parser.add_argument('--lr', '--learning-rate', default=1e-3, type=float,
+parser.add_argument('--lr', '--learning-rate', default=8e-4, type=float,
                     help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float,
                     help='Momentum value for optim')
@@ -85,7 +87,14 @@ args = parser.parse_args()
 
 
 # torch.distributed.init_process_group(backend='nccl', init_method='tcp://localhost:23456', rank=0, world_size=1)
+def xavier(param):
+    init.xavier_uniform(param)
 
+
+def weights_init(m):
+    if isinstance(m, nn.Conv2d):
+        xavier(m.weight.data)
+        m.bias.data.zero_()
 if args.dataset_name == "cnrext":
     targ_root = osp.join(HOME, ".jupyter/cnrpark/parkinglotdetection/data/cnrext")
     data_root = osp.join(HOME, ".jupyter/cnrpark")
@@ -96,7 +105,7 @@ elif args.dataset_name == "snrsmall":
 # # targ_root=osp.join(HOME,".jupyter/cnrpark/parkinglotdetection/data/cnrext")
 # targ_root=osp.join(HOME,".jupyter/cnrpark/parkinglotdetection/data/cnr_park_small/train/")
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+os.environ["CUDA_VISIBLE_DEVICES"] = "9"
 
 # if torch.cuda.is_available():
 #     if args.cuda:
@@ -123,8 +132,9 @@ if args.visdom:
 
 def net_train():
     print("loading net...")
-
-    net = vgg16(pretrain=True)
+    lr=args.lr
+    net = malexnet()
+    weights_init(net)
     if args.resume:
         print('Resuming training, loading {}...'.format(args.resume))
         net.load_state_dict(torch.load(args.resume))
@@ -154,8 +164,7 @@ def net_train():
         epoch_plot = create_vis_plot('Epoch', 'Loss', vis_title, vis_legend)
 
     data_loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=num_work, shuffle=True, pin_memory=False)
-    optimizer = optim.SGD(net.parameters(), lr=lr, momentum=momentum,
-                          weight_decay=weight_decay)
+
     batch_iterator = iter(data_loader)
     cost = nn.CrossEntropyLoss()
     running_loss = 0.0
@@ -166,6 +175,12 @@ def net_train():
         if (iteration % epoch_size == 0):
             running_loss = 0
             epoch += 1
+            if epoch % 2 == 0:
+                lr *= 0.75
+            print('Saving state,iter:', iteration)
+            torch.save(net.state_dict(), 'weights/malexnet_cnrparkext' + repr(epoch) + '.pth')
+        if(epoch>=6):
+            break
         try:
             images, targets = next(batch_iterator)
         except StopIteration:
@@ -179,6 +194,9 @@ def net_train():
             else:
                 images = Variable(images)
                 targets = [Variable(ann) for ann in targets]
+
+        optimizer = optim.SGD(net.parameters(), lr=lr, momentum=momentum,
+                              weight_decay=weight_decay)
         t0 = time.time()
         out = net(images)
         optimizer.zero_grad()
@@ -190,13 +208,13 @@ def net_train():
         running_loss += loss.data
         if iteration % 10 == 0:
             print('timer:%.4f sec.' % (t1 - t0))
-            print('iter' + repr(iteration) + '||loss:%.4f||' % (loss.item()), end=' ')
+            print('epoch'+repr(epoch)+'||iter' + repr(iteration) + '||loss:%.4f||' % (loss.item()), end=' ')
         if args.visdom:
             update_vis_plot(iteration, loss.item(),
                             iter_plot, epoch_plot, 'append')
-        if iteration != 0 and iteration % 20000 == 0:
-            print('Saving state,iter:', iteration)
-            torch.save(net.state_dict(), 'weights/vgg16_cnrparkext' + repr(iteration) + '.pth')
+        # if iteration != 0 and iteration % 20000 == 0:
+        #     print('Saving state,iter:', iteration)
+        #     torch.save(net.state_dict(), 'weights/malexnet_cnrparkext' + repr(epoch) + '.pth')
         # running_correct += torch.sum(out== y.data)
 
 
