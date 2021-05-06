@@ -5,7 +5,7 @@
       <paths name="zengweijia@120.27.217.156:6000 password">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/zengweijia/.jupyter/cnrpark/parkinglotdetection" local="$PROJECT_DIR$" />
+            <mapping deploy="/.jupyter/cnrpark/parkinglotdetection" local="$PROJECT_DIR$" />
           </mappings>
           <excludedPaths>
             <excludedPath local="true" path="$PROJECT_DIR$/data/cnr_park_small" />

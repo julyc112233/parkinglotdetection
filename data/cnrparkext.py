@@ -21,7 +21,10 @@ for path in str[:-1]:
 data_targ_root=osp.join(tmp,"data","cnrext")
 
 def cnrext_dataset_split(dataset_root,str="train"):
-    txt_root=osp.join(dataset_root,"LABELS/train.txt")
+    if str=="train":
+        txt_root=osp.join(dataset_root,"LABELS/train.txt")
+    else:
+        txt_root=osp.join(dataset_root,"LABELS/test.txt")
     f=open(txt_root,"r",encoding='utf-8')
     txt_data=[]
     label=[]
@@ -48,12 +51,15 @@ def cnrext_dataset_split(dataset_root,str="train"):
         cv2.imwrite(targ_dir,im)
 
 class cnrext(data.Dataset):
-    def __init__(self,root,transform=None,str="train"):
+    def __init__(self,root,transform=None,str=None):
         self.class_to_ind=dict(zip(classes,range(len(classes))))
         self.root=root
         self.file_root=list()
         self.transform=transform
-        self.txt_root=osp.join(root,"train.txt")
+        if str=="train":
+            self.txt_root=osp.join(root,"train.txt")
+        else:
+            self.txt_root=osp.join(root,"test.txt")
         self.label=list()
         f=open(self.txt_root,"r",encoding='utf-8')
         line=f.readline().strip()
@@ -86,3 +92,28 @@ class cnrext(data.Dataset):
 
     def __len__(self):
         return self.len
+
+    def pull_image(self, index):
+        '''Returns the original image object at index in PIL form
+
+        Note: not using self.__getitem__(), as any transformations passed in
+        could mess up this functionality.
+
+        Argument:
+            index (int): index of img to show
+        Return:
+            PIL img
+        '''
+        return cv2.imread(self.file_root[index], cv2.IMREAD_COLOR)
+    def pull_label(self, index):
+        '''Returns the original image object at index in PIL form
+
+        Note: not using self.__getitem__(), as any transformations passed in
+        could mess up this functionality.
+
+        Argument:
+            index (int): index of img to show
+        Return:
+            PIL img
+        '''
+        return self.label[index]
