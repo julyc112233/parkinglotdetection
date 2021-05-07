@@ -1,5 +1,6 @@
 import torchvision
 import torch
+import torch.nn as nn
 
 def vgg16(pretrain=None):
     model=torchvision.models.vgg16(pretrain)
@@ -16,9 +17,11 @@ def vgg16(pretrain=None):
                                        torch.nn.Linear(4096, 2))
     return model
     # return model
-def malexnet():
-    model=torchvision.models.alexnet()
-    model.features=torch.nn.Sequential(torch.nn.Conv2d(3,16,kernel_size=11,stride=4,padding=(2, 2)),
+class malexnet(nn.Module):
+
+    def __init__(self, num_classes=1000):
+        super(malexnet, self).__init__()
+        self.features = torch.nn.Sequential(torch.nn.Conv2d(3,16,kernel_size=11,stride=4,padding=(2, 2)),
                               torch.nn.ReLU(inplace=True),
                               torch.nn.LocalResponseNorm(4),
                               torch.nn.MaxPool2d(kernel_size=3, stride=2, padding=0, dilation=1, ceil_mode=False),
@@ -29,10 +32,17 @@ def malexnet():
                               torch.nn.Conv2d(20, 30, kernel_size=3, stride=1, padding=(2, 2)),
                               torch.nn.ReLU(inplace=True),
                               torch.nn.MaxPool2d(kernel_size=3, stride=2, padding=0, dilation=1, ceil_mode=False))
-    model.avgpool=torch.nn.MaxPool2d(kernel_size=1)
-    model.classifier=torch.nn.Sequential(torch.nn.Linear(1470,48),
+        self.classifier = torch.nn.Sequential(torch.nn.Linear(1470,48),
                                          torch.nn.ReLU(),
                                          torch.nn.Linear(48,2))
+
+    def forward(self, x):
+        x = self.features(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        return x
+def malex():
+    model=malexnet()
     return model
 # print(torchvision.models.alexnet())
 # AlexNet(

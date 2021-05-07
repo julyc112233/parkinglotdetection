@@ -3,11 +3,12 @@
 # Press ⇧F10 to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
 import argparse
+import copy
 import sys
 import time
 import torch.nn.init as init
 
-
+from eval import *
 from ssdaugumentations import SSDAugmentation
 from data import *
 import torchvision
@@ -34,7 +35,7 @@ HOME = os.path.expanduser("~")
 # data_root=osp.join(HOME,"Downloads/CNR-EXT-Patches-150x150")
 batch_size = 64
 num_work = 32
-epoch_num = 6
+epoch_num = 30
 lr = 0.0001
 momentum = 0.9
 weight_decay = 5e-4
@@ -150,12 +151,16 @@ def net_train():
     train_loss = 0
     print("process_data...")
     if args.dataset_name == "cnrext":
-        dataset = cnrext(targ_root, transform=SSDAugmentation(224, MEANS))
+        dataset = cnrext(targ_root, transform=SSDAugmentation(224, MEANS),str="train")
     else:
         if args.dataset_name == " cnrsmall":
             print("cnrsmall")
             dataset = cnrpark_small(targ_root, transform=SSDAugmentation(224, MEANS))
     epoch_size = len(dataset) // batch_size
+
+    # 加载测试数据
+    test_data = cnrext(targ_root, str="test")
+
 
     if args.visdom:
         vis_title = 'loss'
@@ -170,16 +175,22 @@ def net_train():
     running_loss = 0.0
     epoch = 0
     print("start train...")
-
+    best_acc=0
     for iteration in range(0, 500000):
         if (iteration % epoch_size == 0):
             running_loss = 0
             epoch += 1
+            # print("evaluating network..")
+            # acc=test_result(net,test_data,transform=BaseTransform(224,(104, 117, 123)),cuda=args.cuda)
+            # if acc> best_acc:
+            #     best_acc=acc
+            #     best_net=copy.deepcopy(net)
+            #     print('Saving state,iter:', iteration)
+            #     torch.save(net.state_dict(), 'weights/malexnet_cnrparkext' + repr(epoch) + '.pth')
             if epoch % 2 == 0:
                 lr *= 0.75
-            print('Saving state,iter:', iteration)
-            torch.save(net.state_dict(), 'weights/malexnet_cnrparkext' + repr(epoch) + '.pth')
-        if(epoch>=6):
+
+        if(epoch>=epoch_num):
             break
         try:
             images, targets = next(batch_iterator)
@@ -187,6 +198,7 @@ def net_train():
             pass
         # print(targets)
         # exit()
+        net.train()
         with torch.no_grad():
             if args.cuda:
                 images = Variable(images.cuda())
@@ -209,6 +221,7 @@ def net_train():
         if iteration % 10 == 0:
             print('timer:%.4f sec.' % (t1 - t0))
             print('epoch'+repr(epoch)+'||iter' + repr(iteration) + '||loss:%.4f||' % (loss.item()), end=' ')
+            print("lr:"+repr(lr)+"||momentum:"+repr(momentum)+"||weight_dacay:"+repr(weight_decay))
         if args.visdom:
             update_vis_plot(iteration, loss.item(),
                             iter_plot, epoch_plot, 'append')
@@ -216,7 +229,7 @@ def net_train():
         #     print('Saving state,iter:', iteration)
         #     torch.save(net.state_dict(), 'weights/malexnet_cnrparkext' + repr(epoch) + '.pth')
         # running_correct += torch.sum(out== y.data)
-
+    # torch.save(best_net.state_dict(), 'weights/bestacc_malexnet_cnrparkext'  + '.pth')
 
 # net_train()
 def create_vis_plot(_xlabel, _ylabel, _title, _legend):

@@ -68,10 +68,12 @@ class BaseTransform:
     def __call__(self, image, boxes=None, labels=None):
         return base_transform(image, self.size, self.mean), boxes, labels
 
-def test_result(net,model_root,test_data,transform=None,cuda=False):
-    print("loading weight...")
-    net.load_state_dict(torch.load(model_root))
-    print("loading finished...")
+def test_result(net,test_data,model_root=None,transform=None,cuda=False):
+
+    if model_root:
+        print("loading weight...")
+        net.load_state_dict(torch.load(model_root))
+        print("loading finished...")
     net.eval()
     if cuda:
         net=net.cuda(cuda_device)
@@ -97,7 +99,7 @@ def test_result(net,model_root,test_data,transform=None,cuda=False):
             pred+=1
     acc=pred/len
     print("Acc:",acc)
-
+    return acc
 
 if __name__ == '__main__':
     if need_split_data:
@@ -120,5 +122,5 @@ if __name__ == '__main__':
         model_root=osp.join("weights",file)
     # model_root="weights/vgg16_cnrparkext100000.pth"
         test_data=cnrext(targ_root,str="test")
-        test_result(net,model_root,test_data,transform=BaseTransform(224,(104, 117, 123)),cuda=True)
+        test_result(net,test_data,model_root,transform=BaseTransform(224,(104, 117, 123)),cuda=True)
 
