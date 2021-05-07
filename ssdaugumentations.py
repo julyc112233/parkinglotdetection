@@ -209,6 +209,15 @@ class ToTensor(object):
     def __call__(self, cvimage, boxes=None, labels=None):
         return torch.from_numpy(cvimage.astype(np.float32)).permute(2, 0, 1), boxes, labels
 
+class RandomCrop(object):
+    def __init__(self,size=224):
+        self.size=size
+    def __call__(self,images, boxes,classes):
+        width,height,_=images.shape
+        sw=random.randint(0,width-self.size)
+        sh=random.randint(0,height-self.size)
+        images=images[sw:sw+self.size,sh:sh+self.size]
+        return images,boxes,classes
 
 class RandomSampleCrop(object):
     """Crop
@@ -350,7 +359,7 @@ class RandomMirror(object):
     def __call__(self, image, boxes, classes):
         _, width, _ = image.shape
         if random.randint(2):
-            image = image[:, ::-1]
+            image = image[::-1, :]
             if not boxes is None:
                 boxes = boxes.copy()
                 boxes[:, 0::2] = width - boxes[:, 2::-2]
@@ -406,7 +415,6 @@ class PhotometricDistort(object):
         im, boxes, labels = distort(im, boxes, labels)
         return self.rand_light_noise(im, boxes, labels)
 
-
 class SSDAugmentation(object):
     def __init__(self, size=300, mean=(104, 117, 123)):
         self.mean = mean
@@ -415,13 +423,15 @@ class SSDAugmentation(object):
             # transforms.ToTensor(),
             ConvertFromInts(),
             ToAbsoluteCoords(),
-            PhotometricDistort(),
-            Expand(self.mean),
-            RandomSampleCrop(),
+            # PhotometricDistort(),
+            # Expand(self.mean),
+            # RandomSampleCrop(),
+            Resize(256),
             RandomMirror(),
+            RandomCrop(),
             ToPercentCoords(),
-            Resize(self.size),
-            SubtractMeans(self.mean)
+            # Resize(self.size),
+            # SubtractMeans(self.mean)
         ])
 
     def __call__(self, img, boxes, labels):
