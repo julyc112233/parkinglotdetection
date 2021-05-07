@@ -180,13 +180,13 @@ def net_train():
         if (iteration % epoch_size == 0):
             running_loss = 0
             epoch += 1
-            # print("evaluating network..")
-            # acc=test_result(net,test_data,transform=BaseTransform(224,(104, 117, 123)),cuda=args.cuda)
-            # if acc> best_acc:
-            #     best_acc=acc
-            #     best_net=copy.deepcopy(net)
-            #     print('Saving state,iter:', iteration)
-            #     torch.save(net.state_dict(), 'weights/malexnet_cnrparkext' + repr(epoch) + '.pth')
+            print("evaluating network..")
+            acc=test_result(net,test_data,transform=BaseTransform(224,(104, 117, 123)),cuda=args.cuda)
+            if acc> best_acc:
+                best_acc=acc
+                best_net=copy.deepcopy(net)
+                print('Saving state,iter:', iteration)
+                torch.save(net.state_dict(), 'weights/malexnet_cnrparkext' + repr(epoch) + '.pth')
             if epoch % 2 == 0:
                 lr *= 0.75
 
